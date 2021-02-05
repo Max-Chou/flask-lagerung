@@ -1,5 +1,5 @@
 import os
-import io
+from io import BytesIO, StringIO
 import shutil
 import sys
 import tempfile
@@ -44,7 +44,7 @@ class FileStorageTests(unittest.TestCase):
         """
         File storage can save the file object.
         """
-        content = io.StringIO("storage contents")
+        content = StringIO("storage contents")
         self.storage.save("storage_test", content)
         self.assertTrue(self.storage.exists('storage_test'))
 
@@ -56,7 +56,7 @@ class FileStorageTests(unittest.TestCase):
         Save a pathname should create intermediate directories as necessary.
         """
         self.assertFalse(self.storage.exists('path/to'))
-        self.storage.save('path/to/test.file', io.BytesIO(b'file saved with path'))
+        self.storage.save('path/to/test.file', BytesIO(b'file saved with path'))
 
         self.assertTrue(self.storage.exists('path/to'))
         with self.storage.open('path/to/test.file') as f:
@@ -73,7 +73,7 @@ class FileStorageTests(unittest.TestCase):
         """
         self.assertFalse(self.storage.exists('test.file'))
 
-        f = io.StringIO("custom content")
+        f = StringIO("custom content")
         f_name = self.storage.save('test.file', f)
         self.assertEqual(self.storage.path(f_name), os.path.join(self.temp_dir, f_name))
 
@@ -107,8 +107,8 @@ class FileStorageTests(unittest.TestCase):
         self.assertFalse(self.storage.exists('storage_test_2'))
         self.assertFalse(self.storage.exists('storage_dir_1'))
 
-        self.storage.save('storage_test_1', io.StringIO('custom content'))
-        self.storage.save('storage_test_2', io.StringIO('custom content'))
+        self.storage.save('storage_test_1', StringIO('custom content'))
+        self.storage.save('storage_test_2', StringIO('custom content'))
         os.mkdir(os.path.join(self.temp_dir, 'storage_dir_1'))
 
         dirs, files = self.storage.listdir('')

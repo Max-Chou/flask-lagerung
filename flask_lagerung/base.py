@@ -1,13 +1,16 @@
 import os
-import io
+from io import BytesIO, StringIO
 from datetime import datetime
 from urllib.parse import urljoin
 from shutil import copyfileobj
 
+try:
+    from tempfile import SpooledTemporaryFile
+except ImportError:
+    from tempfile import TemporaryFile
+
+
 from .utils import filepath_to_uri, create_chunks
-
-
-
 
 
 class Storage:
@@ -15,13 +18,14 @@ class Storage:
     A base storage class, providing some default methods all other storage
     systems can inherit or override.
     """
+
     def open(self, name):
         """Open the specified file from storage."""
-        raise NotImplementedError('subclasses of Storage must provide a open() method')
+        raise NotImplementedError("subclasses of Storage must provide a open() method")
 
     def save(self, name, content):
         """Save new content to the file specified by name."""
-        raise NotImplementedError('subclasses of Storage must provide a save() method')
+        raise NotImplementedError("subclasses of Storage must provide a save() method")
 
     def path(self, name):
         """Return a local filesystem path where the file can be retrieved."""
@@ -29,15 +33,21 @@ class Storage:
 
     def delete(self, name):
         """Delete the specified file from the storage system."""
-        raise NotImplementedError('subclasses of Storage must provide a delete() method')
-    
+        raise NotImplementedError(
+            "subclasses of Storage must provide a delete() method"
+        )
+
     def exists(self, name):
         """Return True if a file exists in the storage system."""
-        raise NotImplementedError('subclasses of Storage must provide a exists() method')
-    
+        raise NotImplementedError(
+            "subclasses of Storage must provide a exists() method"
+        )
+
     def listdir(self, path):
         """List the contents of the specified path."""
-        raise NotImplementedError('subclasses of Storage must provide a listdir() method')
+        raise NotImplementedError(
+            "subclasses of Storage must provide a listdir() method"
+        )
 
     def url(self, name):
         """Return an absolute URL where the file can be accessed by a client."""
@@ -48,14 +58,14 @@ class FileSystemStorage(Storage):
     """
     Standard local filesystem storage
     """
-    def __init__(self, location='', base_url=None):
+
+    def __init__(self, location="", base_url=None):
         self.location = os.path.abspath(location)
-        if base_url is not None and not base_url.endswith('/'):
-            base_url += '/'
+        if base_url is not None and not base_url.endswith("/"):
+            base_url += "/"
         self.base_url = base_url
-        
-    
-    def open(self, name, mode='rb'):
+
+    def open(self, name, mode="rb"):
         return open(self.path(name), mode)
 
     def path(self, name):
@@ -65,13 +75,15 @@ class FileSystemStorage(Storage):
         return os.path.exists(self.path(name))
 
     def save(self, name, stream):
-        if isinstance(stream, io.StringIO):
-            mode = 'w'
-        elif isinstance(stream, io.BytesIO):
-            mode = 'wb'
+        if isinstance(stream, StringIO):
+            mode = "w"
+        elif isinstance(stream, BytesIO):
+            mode = "wb"
+        elif isinstance(stream, SpooledTemporaryFile) or isinstance(stream, TemporaryFile):
+            mode = "wb+"
         else:
-            raise TypeError("stream must be io.StringIO or io.BytesIO object")
-        
+            raise TypeError("stream must be StringIO, BytesIO, SpooledTemporaryFile, TemporaryFile object")
+
         full_path = self.path(name)
 
         # create any intermediate directories that do not exist.
@@ -79,20 +91,18 @@ class FileSystemStorage(Storage):
         if not os.path.exists(directory):
             # there's a race between os.path.exists() and os.makedirs()...
             os.makedirs(directory)
-        
+
         if not os.path.isdir(directory):
             raise IOError("{} exists and is not a directory.".format(directory))
 
-        
         # if the uploaded file is too large, it can overwhelm the system!
         # Therefore, I have to make the chunks of the uploaded files.
         chunks = create_chunks(stream)
         with open(full_path, mode) as f:
             for chunk in chunks:
                 f.write(chunk)
-        
-        return name
 
+        return name
 
     def listdir(self, path):
         path = self.path(path)
@@ -106,11 +116,11 @@ class FileSystemStorage(Storage):
 
     def url(self, name):
         if self.base_url is None:
-            raise ValueError('This file is not accessible via a URL.')
+            raise ValueError("This file is not accessible via a URL.")
 
         url = filepath_to_uri(name)
         if url is not None:
-            url = url.lstrip('/')
+            url = url.lstrip("/")
 
         return urljoin(self.base_url, url)
 
